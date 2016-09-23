@@ -1,0 +1,49 @@
+---
+
+# Example playbook showing how to use the cfssl and local_copy plugins
+# to issue certificates and write them into the Ansible repository.
+
+- hosts: localhost
+  connection: local
+  sudo: no
+
+  tasks:
+  - name: generate a certificate
+    register: demo
+    cfssl:
+      service: my-ca-service.example.com:8001
+      auth:
+				# PEM-encoded variables for the certs/keys
+        cert: '{{ ca_client_cert }}'
+        key: '{{ ca_client_key }}'
+        cacert: '{{ ca_bundle }}'
+      profile: server
+			# passphrase to protect the private key using PKCS#8 AES 256 CBC mode
+			passphrase: '{{ foo_passphrase }}'
+      csr:
+        CN: foo.example.com
+        key:
+          algo: ecdsa
+          size: 384
+        hosts:
+        - '*.example.com'
+        names:
+        - C: US
+          L: San Francisco
+          ST: California
+          O: Example Inc
+          OU: Security
+
+  - name: write certificate to local file
+    local_copy:
+      encrypt: no
+      content: '{{ demo.cert }}'
+      dest: files/certificate.pem
+
+  - name: write private key to local file
+    local_copy:
+			# encrypt private key with the Vault passphrase
+      encrypt: yes
+      content: '{{ demo.key }}'
+      dest: files/private_key.pem
+
